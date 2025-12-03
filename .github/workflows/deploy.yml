@@ -1,14 +1,42 @@
 name: Deploy Fake
 on:
+  # O trigger original, chamado via API/Curl
   repository_dispatch:
     types:
       - deploy-remoto
+  
+  # O trigger NECESSÁRIO para ser chamado por outro workflow (Reutilização)
+  workflow_call: 
+    inputs:
+      ambiente:
+        required: true
+        type: string
 
 jobs:
-    deploy-kubernetes:
-        runs-on: ubuntu-latest
-        steps:
-            - name: Deploy no ambiente
-              run: echo "Executando o deploy no ambiente de ${{ github.event.client_payload.ambiente }}"
-            - name: Curl Deploy no ambiente
-              run: "curl -X POST https://webhook.site/e45ac201-9b23-4044-961c-3e174cc28ffa -d '{ambiente: ${{ github.event.client_payload.ambiente }}}'"
+  deploy-kubernetes:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy no ambiente
+        # Você deve adaptar a forma como pega o parâmetro, pois a fonte mudou
+        # Se for repository_dispatch, use github.event.client_payload.ambiente
+        # Se for workflow_call, use inputs.ambiente
+        run: |
+          # Verifica se foi chamado por repository_dispatch ou workflow_call
+          if [[ "${{ github.event_name }}" == "repository_dispatch" ]]; then
+            AMBIENTE="${{ github.event.client_payload.ambiente }}"
+          else
+            AMBIENTE="${{ inputs.ambiente }}"
+          fi
+          echo "Executando o deploy no ambiente de $AMBIENTE"
+
+      - name: Curl Deploy no ambiente (Opcional - só para teste de dados)
+        run: |
+          # Adaptação similar se precisar passar a variável para o curl
+          if [[ "${{ github.event_name }}" == "repository_dispatch" ]]; then
+            AMBIENTE="${{ github.event.client_payload.ambiente }}"
+          else
+            AMBIENTE="${{ inputs.ambiente }}"
+          fi
+          curl -X POST https://webhook.site/e45ac201-9b23-4044-961c-3e174cc28ffa -d "{ambiente: $AMBIENTE}"
+
+# Removido 'curl -L \ ...' do final do arquivo, pois isso não é YAML válido em um workflow.
